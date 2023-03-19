@@ -1,21 +1,18 @@
 const express = require("express");
 const app = express();
+const cors = require('cors')
 const PORT = 3000 || process.env.PORT;
 
 const { Server } = require("socket.io");
 const { createServer } = require("http");
 const httpServer = createServer(app);
 const mqtt = require("mqtt");
-// const options = {
-//   host: "263472cce46a484ebe28884e860989dd.s2.eu.hivemq.cloud",
-//   port: 8883,
-//   protocol: "mqtts",
-//   username: "kibuell",
-//   password: "230699Ipul",
-// };
+const routes = require("./router") 
 
 const client = mqtt.connect("mqtt://localhost");
-const supplyDataHistory = [];
+
+const {Sensor} = require("./models");
+const handleErr = require("./middlewares/error");
 
 const io = new Server(httpServer, {
   cors: {
@@ -23,45 +20,65 @@ const io = new Server(httpServer, {
   },
 });
 
+app.use(cors())
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(routes)
+app.use(handleErr)
+
 
 // Helper function to generate random integer
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-setInterval(() => {
-  const supplyData = {
-    temperature: getRandomInt(20, 30),
-    pressure: getRandomInt(800, 1200),
-    humidity: getRandomInt(30, 70),
-  };
+setInterval( async () => {
+  try {
+    const supplyData = {
+      temperature: getRandomInt(20, 30),
+      pressure: getRandomInt(800, 1200),
+      humidity: getRandomInt(30, 70),
+      date: new Date()
+    };
+  
+    await Sensor.create({
+      temperature: supplyData.temperature,
+      pressure: supplyData.pressure,
+      humidity: supplyData.humidity,
+      date : supplyData.date
+    })
 
-  supplyDataHistory.push(supplyData);
-  client.publish("supply-data", JSON.stringify(supplyData));
-  console.log(`Supply data published: ${JSON.stringify(supplyData)}`);
-  console.log(supplyDataHistory)
+    client.publish("supply-data", JSON.stringify(supplyData));
+    console.log(`Supply data published: ${JSON.stringify(supplyData)}`);
+  } catch (error) {
+    throw error;
+  }
 }, 120000); // 2 minutes in milliseconds
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   console.log("connected", socket.id);
   const supplyData = {
     temperature: getRandomInt(20, 30),
     pressure: getRandomInt(800, 1200),
     humidity: getRandomInt(30, 70),
+    date: new Date()
   };
 
+  await Sensor.create({
+    temperature: supplyData.temperature,
+    pressure: supplyData.pressure,
+    humidity: supplyData.humidity,
+    date : supplyData.date
+  })
+
   client.publish("supply-data", JSON.stringify(supplyData));
-  supplyDataHistory.push(supplyData);
   console.log(`Supply data published: ${JSON.stringify(supplyData)}`);
 
   client.subscribe("supply-data");
 
-  client.on("message", (topic, message) => {
+  client.on("message", async (topic, message) => {
     if (topic === "supply-data") {
       const supplyData = JSON.parse(message);
-      supplyDataHistory.push(supplyData);
       socket.emit("supply-data", supplyData);
     }
   });
