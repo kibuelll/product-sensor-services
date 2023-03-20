@@ -1,63 +1,71 @@
-const {Sensor} = require("../models")
+const { Sensor } = require("../models");
 
 class SensorController {
-  static async getAll(req,res,next) {
+  static async getAll(req, res, next) {
     try {
-      const sensors = await Sensor.findAll()
-      res.status(200).json(sensors)
+      const sensors = await Sensor.findAll();
+      res.status(200).json(sensors);
     } catch (error) {
-      next(error)
+      next(error);
     }
   }
 
-  static async getOne(req,res,next) {
+  static async getOne(req, res, next) {
     try {
-      const {id} = req.params
-      const sensor = await Sensor.findByPk(id)
-      res.status(200).json(sensor)
+      const { id } = req.params;
+      const sensor = await Sensor.findByPk(id);
+      res.status(200).json(sensor);
     } catch (error) {
-      next(error)
+      next(error);
     }
   }
 
-
-  static async update(req,res,next) {
+  static async update(req, res, next) {
     try {
-      const {id} = req.params
-      const sensor = await Sensor.findByPk(id)
-      if(!sensor)  {
+      const { temperature, humidity, pressure } = req.body;
+      const { id } = req.params;
+      const sensor = await Sensor.findByPk(id);
+      if (!sensor) {
         throw {
-          name : "Not Found"
-        }
+          name: "Not Found",
+        };
       }
-      res.status(200).json(sensor)
+
+      await Sensor.update({
+        temperature,
+        pressure,
+        humidity,
+      },{
+        where: {
+          id,
+        },
+      });
+      res.status(200).json({ message: "Sensor updated" });
     } catch (error) {
-      next(error)
+      next(error);
     }
   }
 
-
-  static async destroySensor(req,res,next) {
+  static async destroySensor(req, res, next) {
     try {
-      const {id} = req.params
-      const sensor = await Sensor.findByPk(id)
-      if(!sensor)  {
+      const { id } = req.params;
+      const sensor = await Sensor.findByPk(id);
+      if (!sensor) {
         throw {
-          name : "Not Found"
-        }
+          name: "Not Found",
+        };
       }
 
       await sensor.destroy({
-        where : {
-          id
-        }
-      })
-      res.status(200).json({message : "Sensor destroyed"})
+        where: {
+          id,
+        },
+      });
+      res.status(200).json({ message: "Sensor destroyed" });
     } catch (error) {
-      next(error)
+      next(error);
     }
   }
-
 }
 
-module.exports = SensorController
+module.exports = SensorController;
